@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
@@ -86,13 +85,26 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
     var didInitialize = false;
     var Module = {
         canvas: null,
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // DO NOT SEND ANYTHING ON THIS PAGE TO ANYONE - YOUR ACCOUNT COULD GET STOLEN
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        joinScript: "/test.rbxl",
+        // Launcher script to load your test.rbxl file from Vercel
+        joinScript: "data:text/plain;base64," + btoa(`
+            local client = game:GetService("RunService")
+            local players = game:GetService("Players")
+            game:Load("${window.location.origin}/test.rbxl")
+            players:CreateLocalPlayer(0)
+            players.LocalPlayer.Name = "Player"
+            warn("Loading game file from GitHub repository...")
+        `),
         yearSelection: "2016",
+        baseUrl: window.location.origin,
+        
+        // Helps the loader find WASM/JS files in the Vercel root
+        locateFile: function(path) {
+            return "/" + path;
+        },
+
         onRuntimeInitialized: function() {
             didInitialize = true;
+            console.log("Engine initialized successfully.");
             var textEl = document.getElementsByClassName('loading-text')[0];
             if (!textEl) return;
             textEl.remove();
@@ -110,6 +122,7 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
 
     var disclaimerViewed = window.localStorage.getItem("disclaimer-notice") === "true,2";
     var body = document.getElementsByTagName("body")[0];
+    
     function RBX_startGame() {
         var loadingMessage = document.createElement("p");
         loadingMessage.setAttribute("class", "loading-text");
@@ -119,7 +132,6 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         var canvas = document.createElement("canvas");
         canvas.setAttribute("id", "canvas");
         canvas.oncontextmenu = function (e) {
-            // some games may have their own context menu, or just require a right click for some reason
             e.preventDefault();
         }
         body.append(canvas);
@@ -136,8 +148,8 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         atomics: "Does not support Atomics.",
         bulkMemory: "Does not support bulk memory operations.",
     };
+
     function RBX_featureCheck() {
-        // let's hope another spectre doesn't happen!
         try {
             var alreadyChecked = document.localStorage.getItem("RBX_BrowserFeatureOK")
             if (alreadyChecked === "1") {
@@ -146,10 +158,6 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         }catch (e) {}
         
         return Promise.all([
-            // feature check? more like safari check:
-            // - new-ish (unsupported) versions of safari don't have atomics
-            // - safari doesn't support simd yet
-            // and of course, wasm/atomics/simd won't work on old browsers either.
             RBX_atomicsCheck(),
             RBX_simdCheck(),
             RBX_bulkMemoryCheck(),
@@ -181,7 +189,6 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         try {
             if (typeof window.Atomics === 'undefined')
                 return false;
-            var uint8 = new Uint8Array(8);
             return Promise.resolve();
         }catch (e) {
             return Promise.resolve(featureErrorMessages.atomics);
@@ -217,7 +224,7 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         yearSelection.append(yearOption2014);
         
         var touchSelectRow = document.createElement('div');
-        touchSelectRow.setAttribute('style', "width: 10)%; margin-bottom: 25px;");
+        touchSelectRow.setAttribute('style', "width: 100%; margin-bottom: 25px;");
         var touchEnabled = document.createElement('select');
         var selectOptionYes = document.createElement('option');
         selectOptionYes.setAttribute('value', "true");
@@ -225,12 +232,10 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         var selectOptionNo = document.createElement('option');
         selectOptionNo.setAttribute("value", "false");
         selectOptionNo.innerText = "Touch Controls Disabled";
+        
         var previousTouchControlSetting = window.localStorage.getItem('rbx_touch_controls');
-        if (previousTouchControlSetting === '' || previousTouchControlSetting === undefined || previousTouchControlSetting === null) {
-            // Guess
-            previousTouchControlSetting = (('ontouchstart' in window) ||
-                                               (navigator.maxTouchPoints > 0) ||
-                                               (navigator.msMaxTouchPoints > 0)) ? "true" : "false"
+        if (!previousTouchControlSetting) {
+            previousTouchControlSetting = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) ? "true" : "false"
         }
         if (previousTouchControlSetting === "true") {
             selectOptionYes.setAttribute("selected", "selected");
@@ -241,12 +246,8 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         touchEnabled.appendChild(selectOptionYes);
         touchSelectRow.appendChild(touchEnabled);
         
-        
-        
-        
-        
         var msaaSelectRow = document.createElement('div');
-        msaaSelectRow.setAttribute('style', "width: 10)%; margin-bottom: 85px;");
+        msaaSelectRow.setAttribute('style', "width: 100%; margin-bottom: 85px;");
         var msaaSetting = document.createElement('select');
         var selectOptionMsaa0 = document.createElement('option');
         selectOptionMsaa0.setAttribute('value', "0");
@@ -260,29 +261,20 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         var selectOptionMsaa8 = document.createElement('option');
         selectOptionMsaa8.setAttribute("value", "8");
         selectOptionMsaa8.innerText = "8x MSAA";
+        
         var previousMsaaSetting = window.localStorage.getItem('rbx_msaa');
         switch (previousMsaaSetting) {
-            case "0":
-            default:
-                selectOptionMsaa0.setAttribute("selected", "selected");
-                break;
-            case "4":
-                selectOptionMsaa4.setAttribute("selected", "selected");
-                break;
-            case "2": 
-                selectOptionMsaa2.setAttribute("selected", "selected");
-                break;
-            case "8":
-                selectOptionMsaa8.setAttribute("selected", "selected");
-                break;
+            case "4": selectOptionMsaa4.setAttribute("selected", "selected"); break;
+            case "2": selectOptionMsaa2.setAttribute("selected", "selected"); break;
+            case "8": selectOptionMsaa8.setAttribute("selected", "selected"); break;
+            default: selectOptionMsaa0.setAttribute("selected", "selected"); break;
         }
+        
         msaaSetting.appendChild(selectOptionMsaa0);
         msaaSetting.appendChild(selectOptionMsaa2);
         msaaSetting.appendChild(selectOptionMsaa4);
         msaaSetting.appendChild(selectOptionMsaa8);
         msaaSelectRow.appendChild(msaaSetting);
-        
-        
         
         var acceptButton = document.createElement("p");
         acceptButton.setAttribute("class", "accept-button");
@@ -294,25 +286,20 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
             localStorage.setItem("rbx_touch_controls", touchEnabled.value.toString());
             localStorage.setItem("rbx_msaa", msaaSetting.value.toString());
             wrapper.remove();
-            
             RBX_startGame();
         }
         
         yearSelectRow.append(yearSelection);
         wrapper.append(yearSelectRow);
-        
         wrapper.append(touchSelectRow);
-        
         wrapper.append(msaaSelectRow);
-        
         wrapper.append(acceptButton);
-       
         body.append(wrapper);
     }
     
     function RBX_featureCheckThenGetConsent() {
         RBX_featureCheck().then(function (errMessage) {
-           if (errMessage !== undefined) {               
+           if (errMessage !== undefined) {                
                var wrapper = document.createElement("div");
                wrapper.setAttribute("class", "disclaimer-card");
                var titleH = document.createElement("h2");
@@ -329,7 +316,7 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
                wrapper.appendChild(errMessageLabel);
                
                var ignoreLabel = document.createElement("p");
-               ignoreLabel.innerText = "Try to upgrade to a newer browser, such as a modern version of Chrome or Firefox. You can ignore this warning and the game may still work, however, it could also crash, cause your browser to lock up, just show a black screen, or work but run very slowly.";
+               ignoreLabel.innerText = "Try to upgrade to a newer browser, such as modern Chrome or Firefox. You can ignore this, but it may crash.";
                ignoreLabel.setAttribute("style", "margin-top: 100px;");
                wrapper.appendChild(ignoreLabel);
                
@@ -341,7 +328,6 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
                    RBX_getUserConsent();
                }
                wrapper.appendChild(ignoreButton);
-               
                document.body.appendChild(wrapper);
            }else{
                RBX_getUserConsent();
@@ -359,13 +345,11 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
         wrapper.append(header);
 
         var text = document.createElement("p");
-        text.innerHTML = "Please read this notice - it'll only take a minute, and you'll only have to read it once.<br/><br/><ul>" + 
-        "<li>This is still an experimental project. Many features may not work as expected or will crash the game.</li>" +
-        "<li>Do NOT type or paste anything into the console unless you trust what you are entering. Anything pasted can steal your EconomySimulator account, IP, or other information.</li>" +
-        "<li>Although this is much safer than a native client, since the chances of severe exploits like RCE are low, there may still be other vulnerabilities (such as IP grabbers). You should use a VPN.</li>" +
-        "<li><span class=\"focal\">Chrome</span> (as well as forks like Brave and Microsoft Edge) and <span class='focal'>Firefox</span> are the only supported browsers. Safari will not work - the main problem is a lack of SIMD support, see: <a href=\"https://webassembly.org/roadmap\">webassembly.org/roadmap</a>.</li>" +
-        "<li>Browser keyboard shortcuts, such as CTRL+R (Page Reload), will not work while you are in-game.</li>" +
-        "<li>Navigating away from the page while in-game, e.g. to another tab, will probably disconnect you from the game. This is not intentional, it's just how browsers work.</li>" +
+        text.innerHTML = "Please read this notice.<br/><br/><ul>" + 
+        "<li>Experimental project.</li>" +
+        "<li>Do NOT paste code into the console.</li>" +
+        "<li>Use a VPN for safety.</li>" +
+        "<li>Chrome and Firefox only.</li>" +
         "</ul>";
 
         text.setAttribute("class", "disclaimer-text");
@@ -381,7 +365,6 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
             RBX_featureCheckThenGetConsent();
         }
         wrapper.append(acceptButton);
-
         body.append(wrapper);
     }
 
@@ -394,9 +377,9 @@ License: https://github.com/GoogleChromeLabs/wasm-feature-detect/blob/5f715f923c
     window.onerror = function (msg, url, line) {
         var message = "OUT=" + msg + "\nURL=" + url + "\nLINE=" + line + "\nINIT=" + didInitialize;
         if (didInitialize) {
-            window.alert("An unexpected error occurred. The game may crash. Please report this issue: include your browser, browser version, operating system, and this message:\n" + message);
+            window.alert("Unexpected error. The game may crash.\n" + message);
         }else{
-            alert("Error loading runtime. Your browser may not be supported. If possible, please use the latest version of Chrome, Microsoft Edge, or Firefox.\nIf you are already using a supported browser, please report this issue: include your browser, browser version, operating system, and this message:\n" + message);
+            alert("Error loading runtime.\n" + message);
         }
         return false;
     };
